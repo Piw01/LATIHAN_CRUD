@@ -1,72 +1,168 @@
 <?php
 // public/api.php
-// REST API Endpoint untuk Mahasiswa
+// API endpoint mahasiswa (JSON only)
 
-require_once __DIR__ . '/../src/controllers/ApiController.php';
+session_start();
 
-$apiController = new ApiController();
+// Tampilkan error saat development
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
-// Ambil HTTP method
-$method = $_SERVER['REQUEST_METHOD'];
+// Semua response berbentuk JSON
+header('Content-Type: application/json; charset=utf-8');
 
-// Ambil URI
-$uri = $_SERVER['REQUEST_URI'];
-$uri = parse_url($uri, PHP_URL_PATH);
-$uri = explode('/', trim($uri, '/'));
+// CORS headers untuk akses dari domain lain
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
 
-// Ambil parameter NIM jika ada
-// Format: /api.php/mahasiswa atau /api.php/mahasiswa/123456
-$resource = isset($uri[1]) ? $uri[1] : '';
-$nim = isset($uri[2]) ? $uri[2] : null;
+// Handle preflight request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
-// Routing API berdasarkan HTTP Method
+// Load controller
+require_once __DIR__ . '/../src/controllers/ApiMahasiswaController.php';
+use src\controller\ApiMahasiswaController;
+
+/**
+ * Helper kirim response JSON
+ */
+function respond(int $status, array $body): void {
+    http_response_code($status);
+    echo json_encode($body);
+    exit;
+}
+
+// HTTP method yang dipakai client
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+// Ambil parameter dari query string
+$resource = isset($_GET['resource']) ? trim($_GET['resource']) : null;
+$nim = isset($_GET['nim']) ? trim($_GET['nim']) : null;
+
+// Default resource
+if ($resource === null || $resource === '') {
+    $resource = 'mahasiswa';
+}
+
+// Saat ini hanya support resource mahasiswa
+if ($resource !== 'mahasiswa') {
+    respond(404, [
+        'success' => false,
+        'message' => 'Resource tidak dikenal. Saat ini hanya mendukung resource=mahasiswa.'
+    ]);
+}
+
+// Buat controller
+$controller = new ApiMahasiswaController();
+
+/**
+ * Helper untuk ambil input body (WAJIB JSON)
+ * Tidak lagi menerima data dari form ($_POST)
+ */
+function getRequestBody(): array {
+    // Cek Content-Type wajib application/json
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? ($_SERVER['HTTP_CONTENT_TYPE'] ?? '');
+
+    if (stripos($contentType, 'application/json') === false) {
+        respond(415, [
+            'success' => false,
+            'message' => 'Content-Type harus application/json. Data dari form tidak diterima.',
+        ]);
+    }
+
+    // Baca body mentah
+    $raw = file_get_contents('php://input');
+
+    if (empty($raw)) {
+        respond(400, [
+            'success' => false,
+            'message' => 'Body request kosong. Harus mengirim JSON.',
+        ]);
+    }
+
+    // Decode JSON ke array asosiatif
+    $json = json_decode($raw, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($json)) {
+        respond(400, [
+            'success' => false,
+            'message' => 'Format JSON tidak valid.',
+        ]);
+    }
+
+    return $json;
+}
+
+// Routing berdasarkan HTTP method
 switch ($method) {
     case 'GET':
-        if ($nim) {
-            // GET /api.php/mahasiswa/{nim} - Get by NIM
-            $apiController->getMahasiswaByNim($nim);
+        if (!empty($nim)) {
+            $result = $controller->show($nim);
+            respond($result['status'], $result['body']);
         } else {
-            // GET /api.php/mahasiswa - Get all
-            $apiController->getAllMahasiswa();
+            $result = $controller->index();
+            respond($result['status'], $result['body']);
         }
         break;
 
     case 'POST':
-        // POST /api.php/mahasiswa - Create new
-        $apiController->createMahasiswa();
+        // Wajib login untuk mutasi data
+        if (empty($_SESSION['user'])) {
+            respond(401, [
+                'success' => false,
+                'message' => 'Unauthorized. Silakan login terlebih dahulu.',
+            ]);
+        }
+        $input = getRequestBody();
+        $result = $controller->store($input);
+        respond($result['status'], $result['body']);
         break;
 
     case 'PUT':
-        if ($nim) {
-            // PUT /api.php/mahasiswa/{nim} - Update by NIM
-            $apiController->updateMahasiswa($nim);
-        } else {
-            http_response_code(400);
-            echo json_encode([
-                'status' => 400,
-                'message' => 'NIM diperlukan untuk update data'
+    case 'PATCH':
+        // Wajib login untuk mutasi data
+        if (empty($_SESSION['user'])) {
+            respond(401, [
+                'success' => false,
+                'message' => 'Unauthorized. Silakan login terlebih dahulu.',
             ]);
         }
+        if (empty($nim)) {
+            respond(400, [
+                'success' => false,
+                'message' => 'Parameter nim wajib diisi untuk update.',
+            ]);
+        }
+        $input = getRequestBody();
+        $result = $controller->update($nim, $input);
+        respond($result['status'], $result['body']);
         break;
 
     case 'DELETE':
-        if ($nim) {
-            // DELETE /api.php/mahasiswa/{nim} - Delete by NIM
-            $apiController->deleteMahasiswa($nim);
-        } else {
-            http_response_code(400);
-            echo json_encode([
-                'status' => 400,
-                'message' => 'NIM diperlukan untuk delete data'
+        // Wajib login untuk mutasi data
+        if (empty($_SESSION['user'])) {
+            respond(401, [
+                'success' => false,
+                'message' => 'Unauthorized. Silakan login terlebih dahulu.',
             ]);
         }
+        if (empty($nim)) {
+            respond(400, [
+                'success' => false,
+                'message' => 'Parameter nim wajib diisi untuk delete.',
+            ]);
+        }
+        $result = $controller->destroy($nim);
+        respond($result['status'], $result['body']);
         break;
 
     default:
-        http_response_code(405);
-        echo json_encode([
-            'status' => 405,
-            'message' => 'Method tidak diizinkan'
+        respond(405, [
+            'success' => false,
+            'message' => 'Metode tidak diizinkan. Gunakan GET, POST, PUT/PATCH, atau DELETE.',
         ]);
-        break;
 }
