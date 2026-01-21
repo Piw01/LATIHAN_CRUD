@@ -1,5 +1,5 @@
 <?php
-// src/model/AuthModel.php
+// src/models/AuthModel.php
 
 require_once __DIR__ . '/../config/Connection.php';
 

@@ -1,5 +1,5 @@
 <?php
-// src/view/layout/alert.php
+// src/views/layouts/alert.php
 
 if (isset($_SESSION['message']) && isset($_SESSION['type'])):
     $alertType = $_SESSION['type'] == 'success' ? 'success' : 'danger';

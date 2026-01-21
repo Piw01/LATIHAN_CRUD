@@ -4,6 +4,7 @@ namespace src\controllers;
 
 require_once __DIR__ . '/../models/AuthModel.php';
 
+
 class ApiAuthController {
     private \AuthModel $userModel;
 

@@ -1,5 +1,5 @@
 <?php
-// src/view/mahasiswa/edit.php
+// src/views/mahasiswa/edit.php
 include __DIR__ . '/../layouts/header.php';
 ?>
 

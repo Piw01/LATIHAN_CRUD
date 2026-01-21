@@ -1,5 +1,5 @@
 <?php
-// src/model/MahasiswaModel.php
+// src/models/MahasiswaModel.php
 
 require_once __DIR__ . '/../config/Connection.php';
 
