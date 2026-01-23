@@ -6,7 +6,7 @@
             <p class="mb-0">
                 Sistem Manajemen Mahasiswa &copy; <?= date('Y') ?>
             </p>
-            <p class="mb-0" style="font-size: 0.875rem; opacity: 0.8;">
+            <p class="mb-0" style="font-size: 0.875rem; opacity: 1;">
                 Dibuat dengan PHP & PDO
             </p>
         </div>
@@ -18,7 +18,7 @@
         setTimeout(function() {
             const alert = document.querySelector('.alert');
             if (alert) {
-                alert.style.transition = 'opacity 0.5s';
+                alert.style.transition = 'opacity 0.3s';
                 alert.style.opacity = '0';
                 setTimeout(() => alert.remove(), 500);
             }
